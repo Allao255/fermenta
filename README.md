@@ -65,12 +65,11 @@ A primeira compilação baixa o JUCE.
 
 ## Documentação
 
-- `docs/PROJECT_OVERVIEW.md` — panorama completo (arquitetura, validação,
-  versionamento).
-- `docs/GUIA_LTspice_para_nosso_build.md` — do LTspice ao VST3 pela nossa GUI.
-- `docs/GUIA_LTspice_para_VIOLA.md` — do LTspice ao VST3 pelo VIOLA (MATLAB).
-- `docs/WDF_VIOLA_Study_Guide.pdf` — a teoria de WDF por trás.
+A documentação detalhada (panorama do projeto, guias LTspice→VST3 e a teoria
+WDF) está sendo preparada e será adicionada em breve. Enquanto isso:
+
 - `viola_integration/` — arquivos para integrar com um clone do VIOLA.
+- `ltspice_components/` — símbolos LTspice para desenhar os circuitos.
 
 ## Estrutura
 
@@ -79,7 +78,6 @@ python/      biblioteca (fermenta/), CLI (tools/), testes (tests/)
 cpp/         templates C++/JUCE do plugin
 examples/    netlists de exemplo
 ltspice_components/ símbolos LTspice p/ desenhar circuitos (do VIOLA, GPL-3.0)
-docs/        documentação e guias
 viola_integration/  nossos arquivos p/ o clone do VIOLA (não incluído)
 ```
 
