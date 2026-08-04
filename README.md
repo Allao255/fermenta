@@ -49,19 +49,32 @@ Detalhes e achados de fidelidade em `docs/PROJECT_OVERVIEW.md`.
 
 ---
 
-## Começando
+## Começando — Windows, do zero (fácil)
+
+Para quem está numa máquina nova e só quer usar o app:
+
+1. Baixe o projeto (botão verde **Code → Download ZIP**, e extraia) ou clone.
+2. Clique com o **botão direito** em `setup_windows.bat` → **Executar como
+   administrador**. Ele instala Git, Python, CMake e o compilador C++
+   (VS 2022 Build Tools) automaticamente, via `winget`.
+3. Feche a janela, reinicie o PC se pedir, e **dois cliques** em `abrir_app.bat`.
+   Ele instala as dependências e abre o Fermenta.
+
+Pronto: a interface abre esperando um netlist. Para gerar um VST3, use na GUI o
+botão **Export & Build VST3 (auto)**.
+
+> O `setup_windows.bat` baixa o VS 2022 Build Tools (download grande) — é a parte
+> demorada. `winget` já vem no Windows 10 (1809+) e 11.
+
+### Uso via linha de comando (desenvolvedor)
 
 ```bash
 cd python
 pip install -e ".[gui]"      # instala a lib + matplotlib
 pytest                        # roda os testes
-
-python -m fermenta.gui        # abre a interface (ou run_gui.bat)
+python -m fermenta.gui        # abre a interface
 python -m fermenta.compare    # abre o comparador de pedais
 ```
-
-Para compilar um VST3 é preciso **CMake** + **Visual Studio 2022** (Desktop C++).
-A primeira compilação baixa o JUCE.
 
 ## Documentação
 
