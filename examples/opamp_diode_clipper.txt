@@ -1,0 +1,19 @@
+* opamp_diode_clipper.txt
+* -----------------------------------------------------------------
+* Distorcao suave estilo Tube Screamer.
+* Amplificador operacional NAO-inversor: ganho alto para sinal
+* pequeno (1 + R1/R2). Quando o sinal cresce, o par de diodos
+* antiparalelos (XDap1) na realimentacao conduz e "amassa" os picos
+* -> distorcao. Saida no no "Nout".
+*
+* Componentes usados (convencoes VIOLA):
+*   Vin   fonte de entrada (exatamente uma, chamada Vin)
+*   XOA1  amp-op ideal:  XOA1 <neg> <pos> <out> idealopamp
+*   R     resistores
+*   XDap  par de diodos antiparalelos (extended Shockley)
+* -----------------------------------------------------------------
+Vin Nin 0 SINE(0 0.3 440)
+XOA1 Nfb Nin Nout idealopamp
+R1 Nout Nfb 47k
+R2 Nfb 0 4.7k
+XDap1 Nout Nfb extendedschockleydiodeantiparallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1

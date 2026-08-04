@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fermenta"
+version = "0.1.0"
+description = "A from-scratch Python port of VIOLA's topology-based Wave Digital Filter engine"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-only" }
+authors = [{ name = "fermenta project" }]
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+gui = ["matplotlib>=3.5"]
+
+[project.scripts]
+fermenta-gui = "fermenta.gui:launch"
+
+[tool.setuptools.packages.find]
+include = ["fermenta*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

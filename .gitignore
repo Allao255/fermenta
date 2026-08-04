@@ -1,0 +1,44 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+*.spec.bak
+
+# --- PyInstaller output ---
+python/build/
+python/dist/
+
+# --- C++/JUCE build artifacts ---
+cpp/build/
+examples/**/build/
+*.vst3/
+*.o
+*.obj
+*.exe
+
+# --- exported demo projects (regenerate from the netlist) ---
+examples/MyPedal/
+examples/MyPedal2/
+examples/MyPedal3/
+examples/TSCLIP_juce/
+examples/TSClipJuce/
+
+# --- Upstream VIOLA clone (GPL-3.0, third-party + binaries) ---
+# Not redistributed here. Clone it separately from polimi-ispl/viola and copy
+# the files from viola_integration/ into it. See README.
+viola/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# docs fora do repo por enquanto
+docs/

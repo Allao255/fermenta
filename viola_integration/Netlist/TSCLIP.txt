@@ -1,0 +1,32 @@
+* TSCLIP.asc  (op-amp diode clipper, 2 knobs: Drive + Level)
+Vin N001 0 SINE(0 0.3 440)
+XOA1 N003 N001 N002 idealopamp
+R2 N003 0 4.7k
+R1 N002 N004 51k
+XPlog1 N004 N003 N003 logarithmicpotentiometer params: Rp=500k x=0.5
+XDap1 N002 N003 extendedschockleydiodeantiparallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1
+XPlog2 0 N005 N002 logarithmicpotentiometer params: Rp=100k x=0.8
+
+* block symbol definitions
+.subckt idealopamp 1 2 3
+B1 5 0 V=V(1,2)
+B2 3 0 V=V(3,5)
+.ends idealopamp
+
+.subckt logarithmicpotentiometer 1 2 3
+Ra 1 2 R=Rp*(a*pow(b,x)+c)+tol
+Rb 2 3 R=Rp*(1-a*pow(b,x)-c)+tol
+.param tol=1u Rm=0.1
+.param b=pow(1/Rm-1,2)
+.param a=1/(b-1)
+.param c=-a
+.ends logarithmicpotentiometer
+
+.subckt extendedschockleydiodeantiparallel 1 2
+B 1 2 I=2*Is*sinh((V(1,2)-n*Rs*I(B))/(n*eta*Vth))+(V(1,2)-n*Rs*I(B))/(n*Rp)
+.ends extendedschockleydiodeantiparallel
+
+.wave "TSCLIP_LTspice.wav" 16 48k V(n005)
+.tran 5s uic
+.backanno
+.end

@@ -1,0 +1,12 @@
+* dap_clipper.asc  -- one_non_lin: R + antiparallel diodes + cap
+Vin N001 0 SINE(0 1 1000)
+R1 N001 N002 1k
+C1 N002 0 10n
+XDap1 N002 0 extendedschockleydiodeantiparallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1
+* block symbol definitions
+.subckt extendedschockleydiodeantiparallel 1 2
+B 1 2 I=2*Is*sinh((V(1,2)-n*Rs*I(B))/(n*eta*Vth))+(V(1,2)-n*Rs*I(B))/(n*Rp)
+.ends extendedschockleydiodeantiparallel
+.tran 0 0.05 0 1u
+.backanno
+.end

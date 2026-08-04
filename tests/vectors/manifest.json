@@ -1,0 +1,73 @@
+{
+  "circuit": "DEMO",
+  "source": "viola/windows/Data/Input/Netlist/DEMO.txt",
+  "description": "Extended-Shockley diode in series with a 50k resistor (linear pot at x=0.5) and a 0.1uF cap to ground.",
+  "fs": 48000,
+  "duration_s": 0.05,
+  "integration": "trapezoidal (bilinear) -- matches WDF reactive-element mapping",
+  "params": {
+    "diode": {
+      "Is": 4.352e-09,
+      "eta": 1.905,
+      "Vth": 0.0258563,
+      "Rs": 0.001,
+      "Rp": 1000000.0,
+      "model": "extended Shockley (implicit Rs)"
+    },
+    "R_pot_effective_ohm": 50000.0,
+    "C_farad": 1e-07
+  },
+  "output_nodes": [
+    "N002",
+    "N003"
+  ],
+  "compare_tolerance": {
+    "abs": 1e-06,
+    "rel": 1e-05,
+    "note": "WDF port should match to solver tolerance; 1e-6 V absolute is a safe pass threshold"
+  },
+  "cases": {
+    "dc_step_1v": {
+      "n_samples": 2400,
+      "input_peak": 1.0,
+      "N003_peak": 0.38031791752445676,
+      "N003_final": 0.38031791752445676,
+      "discretization_selfcheck_max_err_vs_8x": 8.717576537181557e-05
+    },
+    "dc_step_neg1v": {
+      "n_samples": 2400,
+      "input_peak": 1.0,
+      "N003_peak": 0.8405961944486603,
+      "N003_final": -0.8405961944486603,
+      "discretization_selfcheck_max_err_vs_8x": 0.0011110430532764828
+    },
+    "sine_250hz_0v2": {
+      "n_samples": 2400,
+      "input_peak": 0.2,
+      "N003_peak": 0.011936690493777954,
+      "N003_final": -0.009239646213657655,
+      "discretization_selfcheck_max_err_vs_8x": 2.7728301460884335e-07
+    },
+    "sine_1khz_0v5": {
+      "n_samples": 2400,
+      "input_peak": 0.5,
+      "N003_peak": 0.13582824817760833,
+      "N003_final": -0.13582024042121504,
+      "discretization_selfcheck_max_err_vs_8x": 1.0040209397259195e-05
+    },
+    "sine_100hz_2v0": {
+      "n_samples": 2400,
+      "input_peak": 2.0,
+      "N003_peak": 1.1872245821801508,
+      "N003_final": -1.181917524195886,
+      "discretization_selfcheck_max_err_vs_8x": 7.0572801720777956e-06
+    },
+    "sweep_20_2k_0v5": {
+      "n_samples": 2400,
+      "input_peak": 0.4999999093572818,
+      "N003_peak": 0.13065101442357932,
+      "N003_final": -0.12960056568810466,
+      "discretization_selfcheck_max_err_vs_8x": 1.0047733015966509e-05
+    }
+  }
+}
