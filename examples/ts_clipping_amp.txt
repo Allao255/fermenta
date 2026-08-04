@@ -1,0 +1,65 @@
+* ts_clipping_amp.txt
+* -----------------------------------------------------------------
+* Tube Screamer (TS808 / "Son of Screamer") - ESTAGIO DE CLIPPING.
+* Amp-op nao-inversor com pot de DRIVE e diodos antiparalelos.
+* Os capacitores dao a "voz" do TS: 0.047u + 4K7 cortam grave,
+* 51p corta agudo. Saida no no N005 -> vai para o estagio de Tom/Volume.
+*
+* NOTA DE MODELAGEM: o +4.5V do circuito real e' terra AC (ponto de
+* referencia). Com amp-op ideal, tratamos +4.5V como o no 0 (terra).
+* Ra foi assumido em 10k (o desenho nao mostra o valor); ajuste se
+* souber o valor real.
+*
+* Nos:
+*   N001 entrada (Vin)        N005 saida do amp-op (SAIDA)
+*   N002 apos cap acoplamento N006 juncao 4K7 + 0.047u
+*   N003 entrada + do amp-op  N007 juncao 51k + Drive
+*   N004 entrada - / no de realimentacao
+*
+* Componentes (convencao VIOLA):
+*   C1 1u    acoplamento de entrada  (N001-N002)
+*   R1 10k   Ra (entrada)            (N002-N003)
+*   R2 10k   bias p/ terra AC        (N003-0)
+*   XOA1     amp-op ideal            (- + out)
+*   R3 4.7k  perna de ganho          (N004-N006)
+*   C2 0.047u corte de grave         (N006-0)
+*   R4 51k   realimentacao fixa      (N005-N007)
+*   XPlog1   DRIVE 500k (reostato)   (N007-N004)
+*   C3 51p   corte de agudo          (N005-N004)
+*   XDap1    diodos antiparalelos    (N005-N004)  clipping
+* -----------------------------------------------------------------
+Vin N001 0 SINE(0 0.1 440)
+C1 N001 N002 1u
+R1 N002 N003 10k
+R2 N003 0 10k
+XOA1 N004 N003 N005 idealopamp
+R3 N004 N006 4.7k
+C2 N006 0 0.047u
+R4 N005 N007 51k
+XPlog1 N007 N004 N004 logarithmicpotentiometer params: Rp=500k x=0.5
+C3 N005 N004 51p
+XDap1 N005 N004 extendedschockleydiodeantiparallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1
+
+* block symbol definitions
+.subckt idealopamp 1 2 3
+B1 5 0 V=V(1,2)
+B2 3 0 V=V(3,5)
+.ends idealopamp
+
+.subckt logarithmicpotentiometer 1 2 3
+Ra 1 2 R=Rp*(a*pow(b,x)+c)+tol
+Rb 2 3 R=Rp*(1-a*pow(b,x)-c)+tol
+.param tol=1u Rm=0.1
+.param b=pow(1/Rm-1,2)
+.param a=1/(b-1)
+.param c=-a
+.ends logarithmicpotentiometer
+
+.subckt extendedschockleydiodeantiparallel 1 2
+B 1 2 I=2*Is*sinh((V(1,2)-n*Rs*I(B))/(n*eta*Vth))+(V(1,2)-n*Rs*I(B))/(n*Rp)
+.ends extendedschockleydiodeantiparallel
+
+.wave "TSCLIP_LTspice.wav" 16 48k V(n005)
+.tran 5s uic
+.backanno
+.end

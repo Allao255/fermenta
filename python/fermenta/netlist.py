@@ -38,8 +38,14 @@ _ENG = {
 
 
 def eng2num(s: str) -> float:
-    """Convert an LTspice engineering-notation value (e.g. '4.7k', '0.1µ') to float."""
+    """Convert an LTspice engineering-notation value (e.g. '4.7k', '0.1µ', '4k7') to float."""
     s = s.strip()
+    # mid-suffix R-notation: 4k7 -> 4.7k, 2R2 -> 2.2 ohm, 1M5 -> 1.5M
+    mm = re.match(r"^([+-]?\d+)([a-zA-Zµ])(\d+)$", s)
+    if mm:
+        num = float(mm.group(1) + "." + mm.group(3))
+        suf = mm.group(2).lower()
+        return num if suf == "r" else num * _ENG.get(suf, 1.0)
     m = re.match(r"^([+-]?[\d.]+(?:[eE][+-]?\d+)?)\s*([a-zA-Zµ]*)$", s)
     if not m:
         return float(s)
@@ -77,6 +83,8 @@ class Netlist:
     @classmethod
     def parse(cls, text: str) -> "Netlist":
         nl = cls()
+        text = text.replace("\u00a7", "")            # LTspice 24: X§OA1 -> XOA1
+        text = text.replace("\u03bc", "\u00b5").replace("\ufeff", "")  # greek mu -> micro, strip BOM
         in_subckt = False
         for raw in text.splitlines():
             line = raw.strip()

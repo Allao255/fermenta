@@ -1,0 +1,31 @@
+* screamo.asc - estagio de clipping do Tube Screamer, desenhado no LTspice 24.
+* Saida no no N002 (saida do OA1). Drive normal (x=1 = maxima distorcao).
+* Carregue este arquivo na GUI do Fermenta (saida = N002).
+X§OA1 N003 N005 N002 IdealOpamp
+R1 0 N005 470k
+C1 N005 N006 0.05µ
+C2 N002 N003 47p
+R2 N001 N003 47k
+R3 N003 N004 4k7
+C3 N004 0 0.05µ
+X§Dap1 N002 N003 ExtendedSchockleyDiodeAntiParallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1
+X§Plog1 N001 N002 N002 LogarithmicPotentiometer params: Rp=500k x=0.5
+Vin N006 0 Vin
+* block symbol definitions
+.subckt IdealOpamp 1 2 3
+B1 5 0 V=V(1,2)
+B2 3 0 V=V(3,5)
+.ends IdealOpamp
+.subckt ExtendedSchockleyDiodeAntiParallel 1 2
+B 1 2 I=2*Is*sinh((V(1,2)-n*Rs*I(B))/(n*eta*Vth))+(V(1,2)-n*Rs*I(B))/(n*Rp)
+.ends ExtendedSchockleyDiodeAntiParallel
+.subckt LogarithmicPotentiometer 1 2 3
+Ra 1 2 R=Rp*(a*pow(b,x)+c)+tol
+Rb 2 3 R=Rp*(1-a*pow(b,x)-c)+tol
+.param tol=1u Rm=0.1
+.param b=pow(1/Rm-1,2)
+.param a=1/(b-1)
+.param c=-a
+.ends LogarithmicPotentiometer
+.backanno
+.end

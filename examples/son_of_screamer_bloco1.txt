@@ -1,0 +1,50 @@
+* son_of_screamer_bloco1.txt
+* -----------------------------------------------------------------
+* Tube Screamer "Son of Screamer" - BLOCO 1 (estagio de clipping).
+* Amp-op nao-inversor com pot de DRIVE na realimentacao e par de
+* diodos antiparalelos que grampeia os picos -> distorcao.
+* Saida no no N002 (saida do amp-op).
+*
+* Nos:
+*   N001 = entrada (Vin, no + do amp-op)
+*   N002 = saida do amp-op  (SAIDA do bloco)
+*   N003 = entrada - do amp-op (no de realimentacao)
+*   N004 = ponto entre o resistor fixo (R1) e o pot de Drive
+*
+* Componentes (nomes na convencao VIOLA):
+*   XOA1   amp-op ideal            (- + out)
+*   R2     4.7k  (N003 -> terra)   define o ganho base
+*   R1     51k   (N002 -> N004)    parte fixa da realimentacao
+*   XPlog1 Drive 500k (reostato)   N004->N003 (n2==n3): mais drive = mais ganho
+*   XDap1  par de diodos antiparalelos (clipping)  N002<->N003
+* -----------------------------------------------------------------
+Vin N001 0 SINE(0 0.1 440)
+XOA1 N003 N001 N002 idealopamp
+R2 N003 0 4.7k
+R1 N002 N004 51k
+XPlog1 N004 N003 N003 logarithmicpotentiometer params: Rp=500k x=0.5
+XDap1 N002 N003 extendedschockleydiodeantiparallel params: Is=4.352n eta=1.905 Vth=25.8563m Rs=1m Rp=1Meg n=1
+
+* block symbol definitions
+.subckt idealopamp 1 2 3
+B1 5 0 V=V(1,2)
+B2 3 0 V=V(3,5)
+.ends idealopamp
+
+.subckt logarithmicpotentiometer 1 2 3
+Ra 1 2 R=Rp*(a*pow(b,x)+c)+tol
+Rb 2 3 R=Rp*(1-a*pow(b,x)-c)+tol
+.param tol=1u Rm=0.1
+.param b=pow(1/Rm-1,2)
+.param a=1/(b-1)
+.param c=-a
+.ends logarithmicpotentiometer
+
+.subckt extendedschockleydiodeantiparallel 1 2
+B 1 2 I=2*Is*sinh((V(1,2)-n*Rs*I(B))/(n*eta*Vth))+(V(1,2)-n*Rs*I(B))/(n*Rp)
+.ends extendedschockleydiodeantiparallel
+
+.wave "SOS1_LTspice.wav" 16 48k V(n002)
+.tran 5s uic
+.backanno
+.end

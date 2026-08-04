@@ -27,6 +27,15 @@ from .netlist import Netlist, pot_taper
 from .solver import WDFCircuit
 from .codegen import emit_cpp
 
+def _read_text(path):
+    """Read a netlist file tolerating LTspice's encoding (UTF-8 or ANSI/latin-1)."""
+    raw = open(path, "rb").read()
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
 SUPPORTED = """SUPPORTED COMPONENTS (VIOLA netlist conventions)
 
   Vin / Iin   input source  (exactly ONE, named Vin or Iin; mono)
@@ -186,7 +195,7 @@ def launch():
     def do_load():
         p = filedialog.askopenfilename(filetypes=[("Netlist", "*.txt *.net *.cir"), ("All", "*.*")])
         if p:
-            txt.delete("1.0", "end"); txt.insert("1.0", open(p).read())
+            txt.delete("1.0", "end"); txt.insert("1.0", _read_text(p))
             log(f"Loaded {os.path.basename(p)}")
 
     ttk.Button(brow, text="Load .txt…", command=do_load).pack(side="left")
