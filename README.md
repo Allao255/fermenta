@@ -1,5 +1,7 @@
 # Fermenta
 
+*[Versão em português](README.pt-BR.md)*
+
 **From an LTspice circuit to a guitar-pedal plugin (VST3), via Wave Digital
 Filters.** Fermenta is an open-source Python port of the method behind
 [VIOLA](https://github.com/polimi-ispl/viola), plus its own C++/JUCE code
