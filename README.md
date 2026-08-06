@@ -108,6 +108,23 @@ The generated C++ matches the Python engine bit-for-bit on linear circuits and
 within numerical noise on the ill-conditioned nonlinear ones
 (`tools/validate_cpp.py`).
 
+### Reproducing the checks
+
+Everything below runs from a clone, with no MATLAB and no VIOLA installation
+(the example netlists ship in `examples/viola/`):
+
+```bash
+cd python
+pip install -e .
+pytest                              # 19 tests vs an independent MNA oracle
+python tools/validate_cpp.py        # generated C++ vs the Python engine
+python tools/fuzz_vs_viola.py 0 100 # 100 random circuits vs a second implementation
+python example_demo.py              # smallest end-to-end run
+```
+
+Reproducing the comparison against VIOLA's *own* plugins additionally requires
+MATLAB with the Audio Toolbox and MATLAB Coder; see `viola_integration/`.
+
 One design decision worth stating: VIOLA computes the diode's adapted port
 resistance through a nullor-MNA reduction whose indexing departs from the
 physical Thévenin resistance when the diode sits inside an op-amp feedback loop.

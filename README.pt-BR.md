@@ -114,6 +114,23 @@ O C++ gerado é idêntico bit a bit à engine Python nos circuitos lineares e fi
 dentro do ruído numérico nos não lineares mal condicionados
 (`tools/validate_cpp.py`).
 
+### Reproduzindo as verificações
+
+Tudo abaixo roda a partir de um clone, sem MATLAB e sem instalar o VIOLA (os
+netlists de exemplo acompanham o repositório em `examples/viola/`):
+
+```bash
+cd python
+pip install -e .
+pytest                              # 19 testes contra um oráculo MNA independente
+python tools/validate_cpp.py        # C++ gerado vs a engine Python
+python tools/fuzz_vs_viola.py 0 100 # 100 circuitos aleatórios vs a segunda implementação
+python example_demo.py              # menor execução de ponta a ponta
+```
+
+Reproduzir a comparação contra os plugins do *próprio* VIOLA exige, além disso,
+MATLAB com Audio Toolbox e MATLAB Coder; ver `viola_integration/`.
+
 Vale registrar uma decisão de projeto: o VIOLA calcula a resistência de porta
 adaptada do diodo por uma redução nullor-MNA cuja indexação se afasta da
 resistência de Thévenin física quando o diodo está dentro da malha de
