@@ -1,0 +1,7 @@
+* rc_lowpass.asc  -- linear RC low-pass, VIOLA compatibility test
+Vin N001 0 SINE(0 0.8 1000)
+R1 N001 N002 1k
+C1 N002 0 100n
+.tran 0 0.05 0 1u
+.backanno
+.end

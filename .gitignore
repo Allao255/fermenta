@@ -31,7 +31,8 @@ examples/TSClipJuce/
 # --- Upstream VIOLA clone (GPL-3.0, third-party + binaries) ---
 # Not redistributed here. Clone it separately from polimi-ispl/viola and copy
 # the files from viola_integration/ into it. See README.
-viola/
+# (only the clone at the repository root; examples/viola/ ships with the repo)
+/viola/
 
 # --- OS / editor ---
 .DS_Store

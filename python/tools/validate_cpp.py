@@ -13,7 +13,8 @@ from fermenta.netlist import Netlist
 from fermenta.solver import WDFCircuit
 from fermenta.codegen import emit_cpp
 
-NLD = f"{ROOT}/viola/windows/Data/Input/Netlist"
+_BUNDLED = f"{ROOT}/examples/viola"
+NLD = _BUNDLED if os.path.isdir(_BUNDLED) else f"{ROOT}/viola/windows/Data/Input/Netlist"
 RC = open(f"{ROOT}/tests/matlab/rc_lowpass.txt").read()
 
 MAIN = r'''#include "dsp.h"
