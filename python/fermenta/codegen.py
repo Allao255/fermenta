@@ -74,6 +74,30 @@ static void gsolve(double A[][NMAX], double B[][NMAX], int n, int m){
     }
     // solution now in B
 }
+
+// Unblocked LU with partial pivoting (dgetf2-style) + explicit inverse.
+template<int NMAX>
+static void luinv(double A[][NMAX], double X[][NMAX], int n){
+    int piv[NMAX];
+    for(int j=0;j<n;++j){
+        int p=j; double best=std::fabs(A[j][j]);
+        for(int i=j+1;i<n;++i){ double v=std::fabs(A[i][j]); if(v>best){best=v;p=i;} }
+        piv[j]=p;
+        if(p!=j) for(int k=0;k<n;++k){ double t=A[j][k]; A[j][k]=A[p][k]; A[p][k]=t; }
+        double d=A[j][j];
+        for(int i=j+1;i<n;++i) A[i][j]/=d;
+        for(int i=j+1;i<n;++i){ double l=A[i][j];
+            if(l!=0.0) for(int k=j+1;k<n;++k) A[i][k]-=l*A[j][k]; }
+    }
+    for(int c=0;c<n;++c){
+        double x[NMAX];
+        for(int i=0;i<n;++i) x[i]=(i==c)?1.0:0.0;
+        for(int j=0;j<n;++j){ int p=piv[j]; if(p!=j){ double t=x[j]; x[j]=x[p]; x[p]=t; } }
+        for(int i=0;i<n;++i) for(int k=0;k<i;++k) x[i]-=A[i][k]*x[k];
+        for(int i=n-1;i>=0;--i){ for(int k=i+1;k<n;++k) x[i]-=A[i][k]*x[k]; x[i]/=A[i][i]; }
+        for(int i=0;i<n;++i) X[i][c]=x[i];
+    }
+}
 '''
 
 _METHODS = r'''
@@ -125,21 +149,13 @@ _METHODS = r'''
         for(int e=0;e<ZNE;++e){ double g=1.0/Z[znPort[e]];
             for(int r=0;r<ZNM;++r){ double ar=znA[r][e]; if(ar==0.0) continue;
                 for(int c=0;c<ZNM;++c){ double ac=znA[c][e]; if(ac!=0.0) Yn[r][c]+=g*ar*ac; } } }
-        // symmetric Jacobi equilibration (matches the Python engine exactly)
-        {   double dsc[ZNM];
-            for(int i=0;i<ZNM;++i){ double v=std::fabs(Yn[i][i]); dsc[i]=(v>0.0)?std::sqrt(v):1.0; }
-            for(int i=0;i<ZNM;++i) for(int j=0;j<ZNM;++j) Yn[i][j]/= (dsc[i]*dsc[j]);
-            for(int i=0;i<ZNM;++i) Yni[i][i]=1.0;
-            gsolve<ZNM>(Yn,Yni,ZNM,ZNM);
-            for(int i=0;i<ZNM;++i) for(int j=0;j<ZNM;++j) Yni[i][j]/= (dsc[i]*dsc[j]);
-        }
+        luinv<ZNM>(Yn,Yni,ZNM);   // LU-GEPP (dgetf2-style, same family as LAPACK)
         if(ZOP==0) return Yni[znB][znB];
         double T1[ZNO][ZNM], T2[ZNM][ZNO], M[ZNO][ZNO], Mi[ZNO][ZNO]={};
         for(int i=0;i<ZNO;++i) for(int j=0;j<ZNM;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=znKp[i][k]*Yni[k][j]; T1[i][j]=t; }
         for(int i=0;i<ZNM;++i) for(int j=0;j<ZNO;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=Yni[i][k]*znUp[k][j]; T2[i][j]=t; }
         for(int i=0;i<ZNO;++i) for(int j=0;j<ZNO;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=T1[i][k]*znUp[k][j]; M[i][j]=-t; }  // H=0
-        for(int i=0;i<ZNO;++i) Mi[i][i]=1.0;
-        gsolve<ZNO>(M,Mi,ZNO,ZNO);
+        luinv<ZNO>(M,Mi,ZNO);
         double z=Yni[znB][znB];
         for(int i=0;i<ZNO;++i) for(int j=0;j<ZNO;++j) z+=T2[znB][i]*Mi[i][j]*T1[j][znB];
         return z;

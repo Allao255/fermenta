@@ -112,8 +112,8 @@ class IdealVoltageSourcePort(Port):
     the reflection does not depend on the incident wave."""
     is_root = False
 
-    def __init__(self, element, fs, r_ref=VIN_REF_R):
-        self._r_ref = r_ref
+    def __init__(self, element, fs, r_ref=None):
+        self._r_ref = VIN_REF_R if r_ref is None else r_ref
         super().__init__(element, fs)
         self.E = float(element.value) if element.value is not None else 0.0
 
@@ -189,8 +189,8 @@ class CurrentSourcePort(Port):
     is_source = True
     viola_faithful = False
 
-    def __init__(self, element, fs, r_ref=IIN_REF_R):
-        self._r_ref = r_ref
+    def __init__(self, element, fs, r_ref=None):
+        self._r_ref = IIN_REF_R if r_ref is None else r_ref
         super().__init__(element, fs)
         self.J = float(element.value) if element.value is not None else 0.0
 

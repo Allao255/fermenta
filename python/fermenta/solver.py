@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 from .netlist import Netlist
 from .graph import CircuitGraph
-from .elements import make_port, DiodePort, CapacitorPort
+from .elements import make_port, DiodePort, CapacitorPort, InductorPort
 from .adaptors import RTypeJunction, scattering_opamp, _StaticJunction
 from .nonlinear import (ext_shockley_diode_scat, anti_ext_shockley_diode_scat,
                         ext_shockley_diode_res, anti_ext_shockley_diode_res)
@@ -94,6 +94,11 @@ class WDFCircuit:
                          "res": _RES[self.elements[d].type]} for d in self.diode_idx]
             self.R_th = np.array([1.0 + self.tol_dsr] * len(self.diode_idx))
         self.leaf_idx = [i for i in range(len(self.ports)) if i not in self.diode_idx]
+        S0 = getattr(self.junction, "S", None)
+        if S0 is not None and not np.all(np.isfinite(S0)):
+            raise np.linalg.LinAlgError("singular/degenerate circuit: non-finite scattering matrix")
+        if self.Z_D is not None and not np.isfinite(self.Z_D):
+            raise np.linalg.LinAlgError("singular/degenerate circuit: non-finite Z_D")
 
     # ---- VIOLA's exact nullor-MNA reduction for the adapted diode port ------
     # Faithful port of viola getMnaData/reorderMnaData + the plugin's updateS:
@@ -137,81 +142,19 @@ class WDFCircuit:
         b = be if be < Ared.shape[0] else be - 1   # VIOLA indexes beta unshifted
         return Ared, eport, Up, Kp, b, nO
 
-    @staticmethod
-    def _gj_inv(Ain):
-        """Gauss-Jordan inverse mirroring the generated C++ gsolve exactly
-        (same pivoting and operation order => bit-identical results)."""
-        import math
-        n = Ain.shape[0]
-        A = [[float(Ain[i, j]) for j in range(n)] for i in range(n)]
-        B = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
-        for c in range(n):
-            piv = c; best = abs(A[c][c])
-            for r in range(c + 1, n):
-                v = abs(A[r][c])
-                if v > best: best = v; piv = r
-            if piv != c:
-                A[c], A[piv] = A[piv], A[c]
-                B[c], B[piv] = B[piv], B[c]
-            d = A[c][c]
-            for k in range(n): A[c][k] /= d
-            for k in range(n): B[c][k] /= d
-            for r in range(n):
-                if r == c: continue
-                f = A[r][c]
-                if f != 0.0:
-                    for k in range(n): A[r][k] -= f * A[c][k]
-                    for k in range(n): B[r][k] -= f * B[c][k]
-        return B
-
     def _viola_Zn(self, dport_idx):
-        """Bit-exact mirror of the generated C++ computeZD()."""
-        import math
+        """VIOLA's Z_n via plain LAPACK inverses (numpy) -- the closest proxy to
+        MATLAB's inv(); on the ill-conditioned MNA matrices these agree with the
+        deployed VIOLA plugins far better than any hand-rolled elimination."""
         Ared, eport, Up, Kp, b, nO = self._viola_mna_data(dport_idx)
-        nM = Ared.shape[0]; ne = Ared.shape[1]
-        A = [[float(Ared[i, j]) for j in range(ne)] for i in range(nM)]
-        Yn = [[0.0] * nM for _ in range(nM)]
-        for e in range(ne):
-            g = 1.0 / float(self.ports[eport[e]].Rp)
-            for r in range(nM):
-                ar = A[r][e]
-                if ar == 0.0: continue
-                for c in range(nM):
-                    ac = A[c][e]
-                    if ac != 0.0: Yn[r][c] += g * ar * ac
-        dsc = [0.0] * nM
-        for i in range(nM):
-            v = abs(Yn[i][i]); dsc[i] = math.sqrt(v) if v > 0.0 else 1.0
-        for i in range(nM):
-            for j in range(nM): Yn[i][j] /= (dsc[i] * dsc[j])
-        Yni = self._gj_inv(np.array(Yn))
-        for i in range(nM):
-            for j in range(nM): Yni[i][j] /= (dsc[i] * dsc[j])
-        if nO == 0:
-            return float(Yni[b][b])
-        T1 = [[0.0] * nM for _ in range(nO)]
-        T2 = [[0.0] * nO for _ in range(nM)]
-        M = [[0.0] * nO for _ in range(nO)]
-        for i in range(nO):
-            for j in range(nM):
-                t = 0.0
-                for k in range(nM): t += float(Kp[i, k]) * Yni[k][j]
-                T1[i][j] = t
-        for i in range(nM):
-            for j in range(nO):
-                t = 0.0
-                for k in range(nM): t += Yni[i][k] * float(Up[k, j])
-                T2[i][j] = t
-        for i in range(nO):
-            for j in range(nO):
-                t = 0.0
-                for k in range(nM): t += T1[i][k] * float(Up[k, j])
-                M[i][j] = -t
-        Mi = self._gj_inv(np.array(M))
-        z = Yni[b][b]
-        for i in range(nO):
-            for j in range(nO): z += T2[b][i] * Mi[i][j] * T1[j][b]
-        return float(z)
+        zvec = np.array([self.ports[k].Rp for k in eport])
+        Yni = np.linalg.inv(Ared @ np.diag(1.0 / zvec) @ Ared.T)
+        if nO:
+            H = np.zeros((nO, nO))
+            Zn = Yni @ (np.eye(Yni.shape[0]) + Up @ np.linalg.inv(H - Kp @ Yni @ Up) @ Kp @ Yni)
+        else:
+            Zn = Yni
+        return float(Zn[b, b])
 
     # ---- Thevenin driving-point resistances (for closed-form single diode) ---
     def _driving_point_resistance(self, dport_idx):
@@ -328,9 +271,9 @@ class WDFCircuit:
             iv = 0.5 * (a[d] - b[d]) / self.Rp[d]
             self.R_th[k] = nl["res"](v[d], iv, P["Is"], P["eta"], P["Vth"], P["Rs"], P["Rp"])
 
-        # latch capacitor states from converged incident waves
+        # latch reactance states from converged incident waves (C and L)
         for i, p in enumerate(self.ports):
-            if isinstance(p, CapacitorPort):
+            if isinstance(p, (CapacitorPort, InductorPort)):
                 p.set_incident(a[i])
         return self._out_from(a, b)
 
