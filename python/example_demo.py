@@ -9,8 +9,8 @@ import numpy as np
 
 from fermenta import Netlist, WDFCircuit
 
-DEFAULT = os.path.join(os.path.dirname(__file__), "..", "viola", "windows",
-                       "Data", "Input", "Netlist", "DEMO.txt")
+DEFAULT = os.path.join(os.path.dirname(__file__), "..", "examples", "viola",
+                       "DEMO.txt")
 
 
 def main(path=DEFAULT, fs=48000, freq=440.0, amp=0.5, dur=0.02):
