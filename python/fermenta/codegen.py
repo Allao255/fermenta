@@ -117,11 +117,37 @@ _METHODS = r'''
             }
         }
     }
+    // VIOLA's exact Z_n nullor-MNA reduction for the adapted diode port:
+    //   Z_n = Yni (I + Up (H - Kp Yni Up)^{-1} Kp Yni), Yni = (Ap Zp^{-1} Ap^T)^{-1}
+    // (beta indexed unshifted after the alpha-row removal, as VIOLA does).
+    double computeZD(){
+        double Yn[ZNM][ZNM]={}, Yni[ZNM][ZNM]={};
+        for(int e=0;e<ZNE;++e){ double g=1.0/Z[znPort[e]];
+            for(int r=0;r<ZNM;++r){ double ar=znA[r][e]; if(ar==0.0) continue;
+                for(int c=0;c<ZNM;++c){ double ac=znA[c][e]; if(ac!=0.0) Yn[r][c]+=g*ar*ac; } } }
+        // symmetric Jacobi equilibration (matches the Python engine exactly)
+        {   double dsc[ZNM];
+            for(int i=0;i<ZNM;++i){ double v=std::fabs(Yn[i][i]); dsc[i]=(v>0.0)?std::sqrt(v):1.0; }
+            for(int i=0;i<ZNM;++i) for(int j=0;j<ZNM;++j) Yn[i][j]/= (dsc[i]*dsc[j]);
+            for(int i=0;i<ZNM;++i) Yni[i][i]=1.0;
+            gsolve<ZNM>(Yn,Yni,ZNM,ZNM);
+            for(int i=0;i<ZNM;++i) for(int j=0;j<ZNM;++j) Yni[i][j]/= (dsc[i]*dsc[j]);
+        }
+        if(ZOP==0) return Yni[znB][znB];
+        double T1[ZNO][ZNM], T2[ZNM][ZNO], M[ZNO][ZNO], Mi[ZNO][ZNO]={};
+        for(int i=0;i<ZNO;++i) for(int j=0;j<ZNM;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=znKp[i][k]*Yni[k][j]; T1[i][j]=t; }
+        for(int i=0;i<ZNM;++i) for(int j=0;j<ZNO;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=Yni[i][k]*znUp[k][j]; T2[i][j]=t; }
+        for(int i=0;i<ZNO;++i) for(int j=0;j<ZNO;++j){ double t=0; for(int k=0;k<ZNM;++k) t+=T1[i][k]*znUp[k][j]; M[i][j]=-t; }  // H=0
+        for(int i=0;i<ZNO;++i) Mi[i][i]=1.0;
+        gsolve<ZNO>(M,Mi,ZNO,ZNO);
+        double z=Yni[znB][znB];
+        for(int i=0;i<ZNO;++i) for(int j=0;j<ZNO;++j) z+=T2[znB][i]*Mi[i][j]*T1[j][znB];
+        return z;
+    }
     void rebuild(){
         buildZ();
         if(NDIODE==1 && !SIM){
-            int d=diodePos[0]; Z[d]=1.0; buildS();
-            double sdd=S[d][d]; Z[d]=(1.0+sdd)/(1.0-sdd);
+            Z[diodePos[0]]=computeZD();
             buildS();
         } else if(SIM){
             for(int k=0;k<NDIODE;++k) Z[diodePos[k]]=Rth[k];
@@ -328,6 +354,24 @@ def emit_cpp(wdf, name: str, pot_labels=None) -> str:
     L.append(f"  double potx[NPG]={dbls(pot_default)};")
     _lbls = "{" + ",".join('"' + x.replace('"', '\\"') + '"' for x in POTLABEL) + "}"
     L.append(f"  static constexpr const char* POTLABEL[NPG] = {_lbls};")
+    # VIOLA Z_n MNA data (single-diode closed-form only)
+    if NDIODE == 1 and not sim:
+        Ared, eport, Up, Kp, zb, znO = wdf._viola_mna_data(dpos[0])
+        znm, zne = Ared.shape
+        zno = max(znO, 1)
+        L.append(f"  static constexpr int ZNM={znm}, ZNE={zne}, ZNO={zno}, ZOP={znO}, znB={zb};")
+        L.append(f"  double znA[ZNM][ZNE]={_arr2d(Ared)};")
+        L.append(f"  int znPort[ZNE]={ints(eport)};")
+        _up = Up if znO else [[0.0]] * znm
+        _kp = Kp if znO else [[0.0] * znm]
+        L.append(f"  double znUp[ZNM][ZNO]={_arr2d(_up)};")
+        L.append(f"  double znKp[ZNO][ZNM]={_arr2d(_kp)};")
+    else:
+        L.append("  static constexpr int ZNM=1, ZNE=1, ZNO=1, ZOP=0, znB=0;")
+        L.append("  double znA[ZNM][ZNE]={{0.0}};")
+        L.append("  int znPort[ZNE]={0};")
+        L.append("  double znUp[ZNM][ZNO]={{0.0}};")
+        L.append("  double znKp[ZNO][ZNM]={{0.0}};")
     # diode
     L.append(f"  int diodePos[NDG]={ints(dpos)};")
     L.append(f"  int diodeAnti[NDG]={ints(danti)};")

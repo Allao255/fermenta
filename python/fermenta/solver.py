@@ -80,8 +80,8 @@ class WDFCircuit:
             self.junction = _StaticJunction(self._rebuild_S(self.Rp))
         elif not self.sim:                            # single diode, closed form
             d = self.diode_idx[0]
-            self.Z_D = (self._driving_point_resistance_mna(d) if self.has_opamp
-                        else self._driving_point_resistance(d))
+            self.Z_D = self._viola_Zn(d)
+            self._dprev = 0.0
             self.Rp[d] = self.Z_D
             self.junction = _StaticJunction(self._rebuild_S(self.Rp))
         else:                                         # SIM/DSR (2+ diodes)
@@ -94,6 +94,124 @@ class WDFCircuit:
                          "res": _RES[self.elements[d].type]} for d in self.diode_idx]
             self.R_th = np.array([1.0 + self.tol_dsr] * len(self.diode_idx))
         self.leaf_idx = [i for i in range(len(self.ports)) if i not in self.diode_idx]
+
+    # ---- VIOLA's exact nullor-MNA reduction for the adapted diode port ------
+    # Faithful port of viola getMnaData/reorderMnaData + the plugin's updateS:
+    #   Z_n = Yni (I + Up (H - Kp Yni Up)^{-1} Kp Yni),  Yni = (Ap Zp^{-1} Ap^T)^{-1}
+    # datum row = alpha (first diode node); Z_D = Z_n[beta, beta] with beta taken
+    # UNSHIFTED after the alpha row removal -- reproducing VIOLA's indexing
+    # exactly (when beta > alpha this differs from the physical Thevenin; we
+    # replicate it for bit-faithfulness with VIOLA-generated plugins).
+    def _viola_mna_data(self, dport_idx):
+        """Constant MNA structure for VIOLA's Z_n (also consumed by codegen)."""
+        import re as _re
+        de = self.elements[dport_idx]
+        opamps = [e for e in self.netlist.elements if e.type == "OA"]
+        lin = [(k, e) for k, e in enumerate(self.elements) if k != dport_idx]
+        labels = {"0"} | {n for _, e in lin for n in e.nodes[:2]} | set(de.nodes[:2])
+        for e in opamps:
+            labels |= set(e.nodes[:3])
+        def _num(l):
+            m = _re.findall(r"\d+", l)
+            return int(m[-1]) if m else None
+        if all(l == "0" or _num(l) is not None for l in labels):
+            ordered = sorted(labels, key=lambda l: 0 if l == "0" else _num(l))
+        else:                                   # non-numeric labels: stable fallback
+            ordered = ["0"] + sorted(l for l in labels if l != "0")
+        idx = {l: i for i, l in enumerate(ordered)}
+        nN = len(ordered); ne = len(lin); nO = len(opamps)
+        Ainc = np.zeros((nN, ne)); eport = []
+        for c, (k, e) in enumerate(lin):
+            Ainc[idx[e.nodes[0]], c] -= 1.0
+            Ainc[idx[e.nodes[1]], c] += 1.0
+            eport.append(k)
+        U = np.zeros((nN, nO)); K = np.zeros((nO, nN))
+        for k, e in enumerate(opamps):
+            neg, pos, out = e.nodes[:3]
+            # ground is an ordinary row/column here (only alpha is removed)
+            U[idx["0"], k] += 1.0; U[idx[out], k] -= 1.0     # NOR: 0 -> out
+            K[k, idx[neg]] += 1.0; K[k, idx[pos]] -= 1.0     # NULL: neg -> pos
+        al = idx[de.nodes[0]]; be = idx[de.nodes[1]]
+        Ared = np.delete(Ainc, al, axis=0)
+        Up = np.delete(U, al, axis=0); Kp = np.delete(K, al, axis=1)
+        b = be if be < Ared.shape[0] else be - 1   # VIOLA indexes beta unshifted
+        return Ared, eport, Up, Kp, b, nO
+
+    @staticmethod
+    def _gj_inv(Ain):
+        """Gauss-Jordan inverse mirroring the generated C++ gsolve exactly
+        (same pivoting and operation order => bit-identical results)."""
+        import math
+        n = Ain.shape[0]
+        A = [[float(Ain[i, j]) for j in range(n)] for i in range(n)]
+        B = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
+        for c in range(n):
+            piv = c; best = abs(A[c][c])
+            for r in range(c + 1, n):
+                v = abs(A[r][c])
+                if v > best: best = v; piv = r
+            if piv != c:
+                A[c], A[piv] = A[piv], A[c]
+                B[c], B[piv] = B[piv], B[c]
+            d = A[c][c]
+            for k in range(n): A[c][k] /= d
+            for k in range(n): B[c][k] /= d
+            for r in range(n):
+                if r == c: continue
+                f = A[r][c]
+                if f != 0.0:
+                    for k in range(n): A[r][k] -= f * A[c][k]
+                    for k in range(n): B[r][k] -= f * B[c][k]
+        return B
+
+    def _viola_Zn(self, dport_idx):
+        """Bit-exact mirror of the generated C++ computeZD()."""
+        import math
+        Ared, eport, Up, Kp, b, nO = self._viola_mna_data(dport_idx)
+        nM = Ared.shape[0]; ne = Ared.shape[1]
+        A = [[float(Ared[i, j]) for j in range(ne)] for i in range(nM)]
+        Yn = [[0.0] * nM for _ in range(nM)]
+        for e in range(ne):
+            g = 1.0 / float(self.ports[eport[e]].Rp)
+            for r in range(nM):
+                ar = A[r][e]
+                if ar == 0.0: continue
+                for c in range(nM):
+                    ac = A[c][e]
+                    if ac != 0.0: Yn[r][c] += g * ar * ac
+        dsc = [0.0] * nM
+        for i in range(nM):
+            v = abs(Yn[i][i]); dsc[i] = math.sqrt(v) if v > 0.0 else 1.0
+        for i in range(nM):
+            for j in range(nM): Yn[i][j] /= (dsc[i] * dsc[j])
+        Yni = self._gj_inv(np.array(Yn))
+        for i in range(nM):
+            for j in range(nM): Yni[i][j] /= (dsc[i] * dsc[j])
+        if nO == 0:
+            return float(Yni[b][b])
+        T1 = [[0.0] * nM for _ in range(nO)]
+        T2 = [[0.0] * nO for _ in range(nM)]
+        M = [[0.0] * nO for _ in range(nO)]
+        for i in range(nO):
+            for j in range(nM):
+                t = 0.0
+                for k in range(nM): t += float(Kp[i, k]) * Yni[k][j]
+                T1[i][j] = t
+        for i in range(nM):
+            for j in range(nO):
+                t = 0.0
+                for k in range(nM): t += Yni[i][k] * float(Up[k, j])
+                T2[i][j] = t
+        for i in range(nO):
+            for j in range(nO):
+                t = 0.0
+                for k in range(nM): t += T1[i][k] * float(Up[k, j])
+                M[i][j] = -t
+        Mi = self._gj_inv(np.array(M))
+        z = Yni[b][b]
+        for i in range(nO):
+            for j in range(nO): z += T2[b][i] * Mi[i][j] * T1[j][b]
+        return float(z)
 
     # ---- Thevenin driving-point resistances (for closed-form single diode) ---
     def _driving_point_resistance(self, dport_idx):
@@ -135,6 +253,7 @@ class WDFCircuit:
 
     # ------------------------------------------------------------------ run
     def reset(self):
+        self._dprev = 0.0
         for p in self.ports:
             p.reset()
         if self.sim:
@@ -161,9 +280,12 @@ class WDFCircuit:
             a[i] = self.ports[i].reflect()
         if self.diode_idx:
             d = self.diode_idx[0]
-            a_D = float(S[d, :] @ a); P = self.elements[d].params
+            a[d] = getattr(self, '_dprev', 0.0)   # VIOLA keeps the diode's previous
+            a_D = float(S[d, :] @ a)        # reflection in the b-vector
+            P = self.elements[d].params
             scat = _SCAT[self.elements[d].type]
             a[d] = scat(a_D, self.Z_D, P["Is"], P["eta"], P["Vth"], P["Rs"], P["Rp"])
+            self._dprev = a[d]
         b = S @ a
         for i, p in enumerate(self.ports):
             p.set_incident(b[i]); p.b = a[i]
