@@ -1,6 +1,6 @@
 """
-fermenta.compare -- side-by-side comparison of two pedals (e.g. our JUCE VST3
-vs VIOLA's VST3), in time and frequency, like the main GUI but for TWO signals.
+fermenta.compare -- side-by-side comparison of two pedals (e.g. the JUCE VST3
+against VIOLA's), in time and frequency -- like the main GUI, but for two signals.
 
 Idea
 ----
@@ -16,7 +16,7 @@ Workflow
 3. Load outA and outB here and click "Comparar".
 
 Shortcut: for signal A you can instead "Renderizar do netlist", which runs our
-own engine directly (identical to our VST) so you only need to render VIOLA's
+engine directly (identical to the generated VST), so only VIOLA's plugin needs
 plugin in the DAW.
 
 Run:  python -m fermenta.compare
@@ -97,7 +97,7 @@ def metrics(a, b):
 
 
 def render_netlist(netlist_text, fs, output, pot_x, x):
-    """Run a signal x through our own engine (== our VST)."""
+    """Run a signal through the fermenta engine (same DSP as the generated VST)."""
     s = Session().load(netlist_text)
     out = output or s.default_output()
     wdf = s.build(fs, out, pot_x or None)
@@ -188,8 +188,8 @@ def launch():
         log(f"A carregado: {os.path.basename(p)}  ({fs} Hz, {len(y)} amostras)")
     ttk.Button(af, text="Carregar WAV…", command=load_A).grid(row=1, column=0, sticky="ew", pady=2)
 
-    # render A from netlist (our engine)
-    rn = ttk.LabelFrame(af, text="…ou renderizar A do netlist (nossa engine)", padding=4)
+    # render A straight from the netlist
+    rn = ttk.LabelFrame(af, text="…ou renderizar A do netlist (engine do fermenta)", padding=4)
     rn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0))
     nl_path = {"p": None}
     def pick_nl():

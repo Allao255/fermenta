@@ -133,12 +133,13 @@ class IdealVoltageSourcePort(Port):
 
 
 class DiodePort(Port):
-    """Extended-Shockley diode as a nonlinear root port.
+    """Extended-Shockley diode: a nonlinear root port.
 
-    NOTE: this is the piece intended for the "build later" phase. The wave-domain
-    reflection is implicit and solved iteratively (Newton / Lambert-W). Here we
-    expose the branch model and a scalar fixed-point so the solver can be
-    completed; the resistance is a fixed linearization reference.
+    The wave-domain reflection is not computed here -- the solver handles it in
+    closed form (Wright-omega, see nonlinear.py) or iteratively (SIM/DSR), since
+    it needs the adapted port resistance derived from the whole circuit. This
+    class carries the device parameters and a Newton solve of the branch
+    current, used by the test oracles.
     """
     is_root = True
 
@@ -147,7 +148,8 @@ class DiodePort(Port):
         return self.el.type           # 'D', 'Dser', or 'Dap'
 
     def port_resistance(self):
-        return float(self.el.params.get("Rs", 1e-3)) + 1e3   # crude reference
+        # provisional value; the solver replaces it with the adapted Z_D
+        return float(self.el.params.get("Rs", 1e-3)) + 1e3
 
     def branch_current(self, Vd, I0=0.0, tol=1e-14, itmax=80):
         p = self.el.params
@@ -164,8 +166,7 @@ class DiodePort(Port):
         return I
 
     def reflect(self):
-        # TODO(build-later): solve b such that the diode constitutive law holds
-        # in the wave domain (implicit -> Newton on b). Placeholder passthrough.
+        # unused: the solver computes the diode's reflection (it needs Z_D)
         self.b = self.a
         return self.b
 
@@ -184,7 +185,7 @@ class CurrentSourcePort(Port):
     raw current, b = J (linearRefScat case 3/4). Tested, that produces ~0 output
     because with Z=1e9 the port is nearly open -- VIOLA's current-source handling
     is an untested stub (no shipped circuit uses Iin/I). The physically correct
-    Norton wave is b = Rg*J, which we use here so the element actually works.
+    Norton wave is b = Rg*J, used here so the element actually works.
     Set viola_faithful=True to reproduce VIOLA's (non-functional) b = J instead."""
     is_source = True
     viola_faithful = False
@@ -218,5 +219,5 @@ def make_port(element, fs) -> Port:
     if cls is None:
         raise NotImplementedError(
             f"No wave model yet for element type {element.type!r} "
-            f"({element.id}). See docs/ for the roadmap.")
+            f"({element.id}).")
     return cls(element, fs)

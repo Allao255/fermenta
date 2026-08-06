@@ -100,13 +100,13 @@ class WDFCircuit:
         if self.Z_D is not None and not np.isfinite(self.Z_D):
             raise np.linalg.LinAlgError("singular/degenerate circuit: non-finite Z_D")
 
-    # ---- VIOLA's exact nullor-MNA reduction for the adapted diode port ------
-    # Faithful port of viola getMnaData/reorderMnaData + the plugin's updateS:
-    #   Z_n = Yni (I + Up (H - Kp Yni Up)^{-1} Kp Yni),  Yni = (Ap Zp^{-1} Ap^T)^{-1}
-    # datum row = alpha (first diode node); Z_D = Z_n[beta, beta] with beta taken
-    # UNSHIFTED after the alpha row removal -- reproducing VIOLA's indexing
-    # exactly (when beta > alpha this differs from the physical Thevenin; we
-    # replicate it for bit-faithfulness with VIOLA-generated plugins).
+    # ---- adapted port resistance of the diode (VIOLA's nullor-MNA reduction) --
+    # Port of getMnaData/reorderMnaData + the generated plugin's updateS:
+    #   Z_n = Yni (I + Up (H - Kp Yni Up)^-1 Kp Yni),  Yni = (Ap Zp^-1 Ap^T)^-1
+    # The datum row is alpha (the diode's first node) and Z_D = Z_n[beta, beta]
+    # with beta left UNSHIFTED after that row is dropped. For beta > alpha this
+    # departs from the physical Thevenin resistance; it is reproduced here on
+    # purpose, so plugins match the ones VIOLA generates (see docs, section 7).
     def _viola_mna_data(self, dport_idx):
         """Constant MNA structure for VIOLA's Z_n (also consumed by codegen)."""
         import re as _re

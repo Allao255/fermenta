@@ -1,36 +1,31 @@
-"""
-example_demo.py -- end-to-end use of the wdfviola scaffold on the DEMO circuit.
+"""Minimal end-to-end example: run the DEMO circuit through the WDF engine.
 
-Linear stages (parse -> graph -> Q/B -> R-type scattering) run fully. The DEMO
-circuit contains a diode (nonlinear root), so process() will stop at the
-build-later stage with a clear message -- that is expected for the scaffold.
-Run tests/validate_linear_engine.py to see the linear engine matched to a nodal
-reference at machine precision.
+    python example_demo.py [path/to/DEMO.txt]
 """
-
 import os
-from wdfviola.netlist import Netlist
-from wdfviola.graph import CircuitGraph
+import sys
 
-BASE = os.path.dirname(os.path.abspath(__file__))
-DEMO = os.path.join(BASE, "..", "viola", "windows", "Data", "Input", "Netlist", "DEMO.txt")
+import numpy as np
+
+from fermenta import Netlist, WDFCircuit
+
+DEFAULT = os.path.join(os.path.dirname(__file__), "..", "viola", "windows",
+                       "Data", "Input", "Netlist", "DEMO.txt")
 
 
-def main():
-    nl = Netlist.parse(open(DEMO).read())
-    print("Parsed DEMO netlist:")
-    print("  input source:", nl.input_id)
-    for e in nl.elements:
-        print(f"    {e.id:12s} {e.type:5s} {e.nodes}")
+def main(path=DEFAULT, fs=48000, freq=440.0, amp=0.5, dur=0.02):
+    nl = Netlist.parse(open(path).read())
+    wdf = WDFCircuit(nl, fs, output_element_id="C1")
 
-    g = CircuitGraph(nl)
-    print("\nTopology (VIOLA-equivalent):")
-    print("  " + g.summary().replace("\n", "\n  "))
+    t = np.arange(int(fs * dur)) / fs
+    x = amp * np.sin(2 * np.pi * freq * t)
+    y = wdf.process(x)
 
-    print("\nThe fundamental matrices Q (cutset) and B (loop) above are exactly what "
-          "VIOLA computes in getQB.m; max|Q B^T| == 0 confirms a valid decomposition.")
-    print("Fully-working linear engine + validation: tests/validate_linear_engine.py")
+    print(f"netlist   : {os.path.basename(path)}")
+    print(f"elements  : {len(nl.elements)}   input: {nl.input_id}")
+    print(f"in  peak  : {np.max(np.abs(x)):.4f} V")
+    print(f"out peak  : {np.max(np.abs(y)):.4f} V")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT)

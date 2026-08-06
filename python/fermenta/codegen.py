@@ -10,10 +10,12 @@ gives:
   * setPot(k, x)       -> live circuit knobs (Gain/Level pots)
   * every circuit class (lin / one_non_lin / *_opamp / non_lin SIM-DSR)
 
-The diode's adapted port resistance is recovered from the reflection coefficient
-S[d,d] (R_th = R0*(1+S_dd)/(1-S_dd)), so no separate nullor MNA is needed in C++.
+For a single diode, the adapted port resistance Z_D is computed by the same
+nullor-MNA reduction VIOLA uses (computeZD() in the emitted header); the constant
+part of that system is baked in as znA/znUp/znKp.
 
-Bit-identical to fermenta.WDFCircuit (validated by tools/validate_cpp.py).
+Matches fermenta.WDFCircuit -- bit-identical on linear circuits, and within
+numerical noise on the ill-conditioned nonlinear ones (tools/validate_cpp.py).
 """
 from __future__ import annotations
 import numpy as np

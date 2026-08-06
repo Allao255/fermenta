@@ -3,7 +3,7 @@ graph.py -- circuit graph, spanning tree/cotree and fundamental matrices.
 
 Mirrors viola/windows/Functions/{getGraph,getTreeCotree,getQB}.m
 
-Given a parsed Netlist, we build the circuit's directed graph (one edge per
+From a parsed Netlist, build the circuit's directed graph (one edge per
 2-terminal element), choose a spanning tree, and form the fundamental cutset
 matrix Q and fundamental loop matrix B exactly as VIOLA does:
 
